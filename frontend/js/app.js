@@ -1308,20 +1308,42 @@ async function rateStudyCard(confidence) {
 
 // ============= GOOGLE CALENDAR INTEGRATION =============
 
-function connectGoogleCalendar() {
-    const clientId = ''; // User would need to set this up
-    
-    if (!clientId) {
-        alert('📅 Google Calendar Integration\n\nTo connect your Google Calendar:\n1. Create a Google Cloud project\n2. Enable Google Calendar API\n3. Create OAuth 2.0 credentials\n4. Add your Client ID to the app\n\nThis feature allows you to:\n• Sync study sessions\n• Add task deadlines to calendar\n• Get reminders for upcoming assignments\n\nFor now, you can manually add tasks to your Google Calendar!');
+async function connectGoogleCalendar() {
+    try {
+        // Get upcoming tasks to add to calendar
+        const response = await fetch(`${API_URL}/study/tasks`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         
-        // Open Google Calendar in new tab
-        window.open('https://calendar.google.com', '_blank');
-        return;
+        if (!response.ok) {
+            throw new Error('Failed to fetch tasks');
+        }
+        
+        const tasks = await response.json();
+        const incompleteTasks = tasks.filter(t => !t.completed);
+        
+        if (incompleteTasks.length === 0) {
+            alert('📅 No pending tasks to add to calendar!\n\nCreate some tasks first, then sync them to Google Calendar.');
+            return;
+        }
+        
+        // Create calendar events text for manual addition
+        let calendarText = '📅 Add these tasks to Google Calendar:\n\n';
+        incompleteTasks.forEach(task => {
+            const dueDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date';
+            calendarText += `• ${task.title}\n  Due: ${dueDate}\n  Subject: ${task.subject || 'General'}\n\n`;
+        });
+        
+        calendarText += '\nOpening Google Calendar...';
+        alert(calendarText);
+        
+        // Open Google Calendar
+        window.open('https://calendar.google.com/calendar/r', '_blank');
+        
+    } catch (error) {
+        console.error('Error syncing with calendar:', error);
+        alert('❌ Failed to sync with Google Calendar. Please try again later.');
     }
-    
-    // Future implementation would use Google Calendar API
-    // For now, just open Google Calendar
-    window.open('https://calendar.google.com', '_blank');
 }
 
 if (token) {
