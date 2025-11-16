@@ -523,7 +523,8 @@ Format the plan clearly with headers and bullet points."""
         response = model.generate_content(prompt)
         return {"study_plan": response.text.strip()}
     except Exception as e:
-        return {"study_plan": f"Error generating study plan: {str(e)}"}
+        print(f"[AI Study Plan Error] {type(e).__name__}: {str(e)}")
+        return {"study_plan": f"Error generating study plan: {type(e).__name__}: {str(e)}"}
 
 @app.post("/api/ai/chat")
 async def ai_chat(data: dict, user_id: str = Depends(get_current_user)):
@@ -551,7 +552,8 @@ Assistant:"""
         resp = model.generate_content(prompt)
         return {"response": resp.text.strip()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[AI Chat Error] {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 @app.get("/favicon.ico")
 async def favicon():
