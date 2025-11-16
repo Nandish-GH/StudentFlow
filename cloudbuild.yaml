@@ -11,7 +11,7 @@ steps:
 
   # Deploy image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'Deploy to Cloud Run'
+    id: 'Deploy to Cloud Run (Secret Manager)'
     entrypoint: bash
     args:
       - -c
@@ -21,12 +21,10 @@ steps:
           --region us-east1 \
           --platform managed \
           --allow-unauthenticated \
-          --set-env-vars SECRET_KEY=${_SECRET_KEY},GEMINI_API_KEY=${_GEMINI_API_KEY}
+          --set-secrets GEMINI_API_KEY=GEMINI_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest
 
-substitutions:
-  _SECRET_KEY: "169a765d26005d18dcaf04d2453f37fb"
-  # Provide GEMINI API key via trigger substitution or Secret Manager
-  _GEMINI_API_KEY: ""
+# No substitutions for secrets now; they are pulled from Secret Manager.
+substitutions: {}
 
 images:
   - 'gcr.io/$PROJECT_ID/studentflow:latest'
