@@ -1,13 +1,23 @@
 steps:
-  # Deploy to Cloud Run directly from source using Buildpacks (no Dockerfile needed)
+  # Build container image using Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Image'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/studentflow:latest', '.']
+
+  # Push image to Artifact/Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image'
+    args: ['push', 'gcr.io/$PROJECT_ID/studentflow:latest']
+
+  # Deploy image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'Deploy to Cloud Run from source'
+    id: 'Deploy to Cloud Run'
     entrypoint: bash
     args:
       - -c
       - |
         gcloud run deploy studentflow \
-          --source . \
+          --image gcr.io/$PROJECT_ID/studentflow:latest \
           --region us-east1 \
           --platform managed \
           --allow-unauthenticated \
@@ -15,8 +25,11 @@ steps:
 
 substitutions:
   _SECRET_KEY: "169a765d26005d18dcaf04d2453f37fb"
-  # Set this in the Cloud Build trigger UI or use Secret Manager; do NOT commit real keys.
+  # Provide GEMINI API key via trigger substitution or Secret Manager
   _GEMINI_API_KEY: ""
+
+images:
+  - 'gcr.io/$PROJECT_ID/studentflow:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
