@@ -1,3 +1,23 @@
+// Firebase Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyC_Qx0WNoFnWi_re0epldCW2mqgYPCJSz0",
+    authDomain: "studentflow-478406.firebaseapp.com",
+    projectId: "studentflow-478406",
+    storageBucket: "studentflow-478406.appspot.com",
+    messagingSenderId: "873155023482",
+    appId: "1:873155023482:web:YOUR_APP_ID"
+};
+
+// Initialize Firebase
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    var auth = firebase.auth();
+    var db = firebase.firestore();
+    console.log('✅ Firebase initialized successfully');
+} else {
+    console.warn('⚠️ Firebase SDK not loaded');
+}
+
 // Use local API during dev, relative path in production (Cloud Run/GAE)
 const API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:8080/api'
@@ -57,8 +77,28 @@ window.addEventListener('DOMContentLoaded', async () => {
     rotateStudyTip();
     setInterval(rotateStudyTip, 10000);
     
-    // If token exists, show app directly (no profile endpoint check needed)
-    if (token) {
+    // Listen for Firebase auth state changes
+    if (auth) {
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                // User is signed in
+                token = await user.getIdToken();
+                localStorage.setItem('token', token);
+                localStorage.setItem('firebaseUid', user.uid);
+                localStorage.setItem('userEmail', user.email);
+                console.log('✅ User authenticated:', user.email);
+                showApp();
+            } else {
+                // User is signed out
+                console.log('❌ No user authenticated');
+                if (document.getElementById('app-section') && 
+                    !document.getElementById('app-section').classList.contains('hidden')) {
+                    logout();
+                }
+            }
+        });
+    } else if (token) {
+        // Fallback if Firebase not loaded
         showApp();
     }
 });
@@ -70,23 +110,21 @@ async function login() {
     const password = document.getElementById('login-password').value;
 
     try {
-        const response = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            token = data.access_token;
-            localStorage.setItem('token', token);
-            showApp();
-        } else {
-            const error = await response.json();
-            alert(`Login failed: ${error.detail || 'Invalid credentials'}`);
-        }
+        // Use Firebase Authentication
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Get Firebase ID token
+        token = await user.getIdToken();
+        localStorage.setItem('token', token);
+        localStorage.setItem('firebaseUid', user.uid);
+        localStorage.setItem('userEmail', user.email);
+        
+        console.log('✅ Logged in successfully with Firebase');
+        showApp();
     } catch (err) {
-        alert('Login failed: Network error');
+        console.error('Login error:', err);
+        alert(`Login failed: ${err.message}`);
     }
 }
 
@@ -96,27 +134,51 @@ async function register() {
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-password').value;
 
-    try {
-        const response = await fetch(`${API_URL}/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ first_name, last_name, email, password })
-        });
+    if (!first_name || !last_name || !email || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
 
-        if (response.ok) {
-            alert('✅ Registration successful! Please login.');
-            showLogin();
-        } else {
-            const error = await response.json();
-            alert(`Registration failed: ${error.detail || 'Please try again'}`);
-        }
+    try {
+        // Create user with Firebase Authentication
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Update display name
+        await user.updateProfile({
+            displayName: `${first_name} ${last_name}`
+        });
+        
+        // Store user data in Firestore
+        await db.collection('users').doc(user.uid).set({
+            first_name: first_name,
+            last_name: last_name,
+            email: email,
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('✅ Registered successfully with Firebase');
+        alert('✅ Registration successful! Please login.');
+        showLogin();
     } catch (err) {
-        alert('Registration failed: Network error');
+        console.error('Registration error:', err);
+        alert(`Registration failed: ${err.message}`);
     }
 }
 
 function logout() {
+    // Sign out from Firebase
+    if (auth && auth.currentUser) {
+        auth.signOut().then(() => {
+            console.log('✅ Signed out from Firebase');
+        }).catch((error) => {
+            console.error('Sign out error:', error);
+        });
+    }
+    
     localStorage.removeItem('token');
+    localStorage.removeItem('firebaseUid');
+    localStorage.removeItem('userEmail');
     token = null;
     document.getElementById('auth-section').classList.remove('hidden');
     document.getElementById('app-section').classList.add('hidden');
