@@ -1,0 +1,12 @@
+.vercel
+__pycache__/
+.venv/
+*.py[cod]
+*.sqlite3
+studentflow.db
+.env
+.DS_Store
+.vscode/
+node_modules/
+frontend/assets/favicon*
+*.log

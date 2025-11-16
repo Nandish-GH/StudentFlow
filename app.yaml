@@ -1,0 +1,22 @@
+runtime: python313
+
+entrypoint: python app.py
+
+env_variables:
+  SECRET_KEY: "169a765d26005d18dcaf04d2453f37fb"
+  # Add your GEMINI_API_KEY here or set it in GCloud console
+  # GEMINI_API_KEY: "your-key-here"
+
+handlers:
+- url: /static
+  static_dir: frontend
+  secure: always
+
+- url: /.*
+  script: auto
+  secure: always
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+  target_cpu_utilization: 0.65
