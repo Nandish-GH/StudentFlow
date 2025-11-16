@@ -15,6 +15,7 @@ steps:
 
 substitutions:
   _SECRET_KEY: "169a765d26005d18dcaf04d2453f37fb"
+  # Set this in the Cloud Build trigger UI or use Secret Manager; do NOT commit real keys.
   _GEMINI_API_KEY: ""
 
 options:
