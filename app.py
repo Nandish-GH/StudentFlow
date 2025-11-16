@@ -121,6 +121,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "169a765d26005d18dcaf04d2453f37fb")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
+    print("[Startup] Gemini API configured (key length:", len(GEMINI_API_KEY), ")")
+else:
+    print("[Startup] No Gemini API key found; AI endpoints will return warning messages.")
 
 security = HTTPBearer()
 
