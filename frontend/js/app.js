@@ -1,4 +1,7 @@
-const API_URL = 'http://127.0.0.1:8080/api';
+// Use local API during dev, relative path in production (Cloud Run/GAE)
+const API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8080/api'
+    : '/api';
 let token = localStorage.getItem('token');
 let currentPage = 'dashboard';
 
