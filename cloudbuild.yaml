@@ -9,21 +9,6 @@ steps:
     id: 'Push Image'
     args: ['push', 'gcr.io/$PROJECT_ID/studentflow:latest']
 
-  # Deploy image to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'Deploy to Cloud Run (Secret Manager)'
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        gcloud run deploy studentflow \
-          --image gcr.io/$PROJECT_ID/studentflow:latest \
-          --region us-east1 \
-          --platform managed \
-          --allow-unauthenticated \
-          --set-secrets GEMINI_API_KEY=GEMINI_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest
-
-# No substitutions for secrets now; they are pulled from Secret Manager.
 substitutions: {}
 
 images:

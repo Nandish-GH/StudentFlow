@@ -233,6 +233,39 @@ async function loadDashboard() {
     }
 }
 
+function viewNoteDetail(noteId) {
+    const note = allNotes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    // Create modal for note detail view
+    const isHTML = note.content.includes('<h2>') || note.content.includes('<h3>') || note.content.includes('<ul>');
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="chat-header" style="position: sticky; top: 0; background: white; z-index: 10;">
+                <h2>📝 ${note.title}</h2>
+                <button class="close-btn-red" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 2rem;">
+                ${note.subject ? `<span class="badge" style="margin-bottom: 1rem; display: inline-block;">${note.subject}</span>` : ''}
+                <div style="color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem;">
+                    Created: ${new Date(note.created_at).toLocaleString()}
+                </div>
+                <div class="note-content" style="line-height: 1.8; color: #1f2937;">
+                    ${isHTML ? note.content : `<p style="white-space: pre-wrap;">${note.content}</p>`}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+let allNotes = [];
+
 async function loadNotes() {
     const response = await fetch(`${API_URL}/notes`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -240,20 +273,31 @@ async function loadNotes() {
     if (response.status === 401) { alert('Session expired. Please log in again.'); logout(); return; }
     const json = response.ok ? await response.json() : [];
     const notes = Array.isArray(json) ? json : [];
+    allNotes = notes; // Store for detail view
 
     const list = document.getElementById('notes-list');
-    list.innerHTML = notes.map(note => `
-        <div class="item-card">
+    list.innerHTML = notes.map(note => {
+        // Check if content contains HTML tags (AI-generated study plans)
+        const isHTML = note.content.includes('<h2>') || note.content.includes('<h3>') || note.content.includes('<ul>');
+        const displayContent = isHTML 
+            ? note.content.substring(0, 300) + (note.content.length > 300 ? '...' : '')
+            : note.content.substring(0, 200) + (note.content.length > 200 ? '...' : '');
+        
+        return `
+        <div class="item-card" style="cursor: pointer;" onclick="viewNoteDetail('${note.id}')">
             <h3>${note.title}</h3>
-            <p>${note.content}</p>
+            <div style="max-height: 150px; overflow: hidden; margin: 1rem 0;">
+                ${isHTML ? displayContent : `<p>${displayContent}</p>`}
+            </div>
             <div class="item-meta">
                 ${note.subject ? `<span class="badge badge-status">${note.subject}</span>` : ''}
-                <button class="button" onclick="deleteNote('${note.id}')">
+                <span style="color: #6b7280; font-size: 0.875rem;">${new Date(note.created_at).toLocaleDateString()}</span>
+                <button class="button" onclick="event.stopPropagation(); deleteNote('${note.id}')">
                     <svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 async function createNote() {

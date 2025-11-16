@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY . .
 
+# Create /data directory for database persistence
+RUN mkdir -p /data && chmod 777 /data
+
 # Expose the default port (Cloud Run/GAE will set $PORT dynamically)
 EXPOSE 8080
 
