@@ -57,7 +57,7 @@
             </div>
             <div class="header-text">
                 <h1 class="btn-shine">StudentFlow</h1>
-                <p class="quote">"Success is not final, failure is not fatal: it is the courage to continue that counts." - Winston Churchill</p>
+                <p class="quote" id="study-tip">💡 Loading study tip...</p>
             </div>
         </div>
 
@@ -67,9 +67,10 @@
                 <button onclick="showPage('dashboard')">Dashboard</button>
                 <button onclick="showPage('notes')">Notes</button>
                 <button onclick="showPage('study')">Study</button>
-                <button onclick="window.location.href='/flashcards.html'">Flashcards</button>
+                <button onclick="showPage('flashcards')">Flashcards</button>
                 <button onclick="showPage('community')">Community</button>
                 <button onclick="showPage('wellbeing')">Wellbeing</button>
+                <button onclick="connectGoogleCalendar()" title="Sync with Google Calendar" style="background: #EA4335; color: white;">📅 Calendar</button>
                 <button class="Btn" onclick="logout()" title="Logout">
                     <i class="fa fa-sign-out"></i>
                 </button>
@@ -196,6 +197,91 @@
                 <h1>Wellbeing</h1>
                 <button class="btn-primary" onclick="showModal('mood-modal')">Log Mood</button>
                 <div id="mood-list" class="items-grid"></div>
+            </div>
+
+            <div id="flashcards-page" class="page hidden">
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h1>🎴 Flashcards</h1>
+                    <div style="display: flex; gap: 1rem;">
+                        <select id="flashcard-subject-filter" class="input" onchange="filterFlashcardsBySubject()" style="width: 200px;">
+                            <option value="">All Subjects</option>
+                        </select>
+                        <button class="btn-primary" onclick="showModal('generate-flashcard-modal')">✨ Generate from Note</button>
+                        <button class="btn-primary" onclick="showModal('flashcard-modal')">+ New Flashcard</button>
+                    </div>
+                </div>
+
+                <div id="flashcard-stats" class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card blue">
+                        <div class="stat-icon">🎴</div>
+                        <div class="stat-info">
+                            <p class="stat-label">Total Cards</p>
+                            <p class="stat-number" id="total-flashcards">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card orange">
+                        <div class="stat-icon">📚</div>
+                        <div class="stat-info">
+                            <p class="stat-label">Total Reviews</p>
+                            <p class="stat-number" id="total-reviews">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-info">
+                            <p class="stat-label">Avg Confidence</p>
+                            <p class="stat-number" id="avg-flashcard-confidence">0.0/5</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="study-mode" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <h2>Study Mode</h2>
+                        <div style="font-size: 1.125rem; font-weight: 600; color: #4f46e5;">
+                            <span id="study-card-progress">0 / 0</span>
+                        </div>
+                        <button class="btn-primary" onclick="exitStudyMode()">Exit Study Mode</button>
+                    </div>
+                    
+                    <div id="flashcard-container" style="perspective: 1000px; margin-bottom: 2rem;">
+                        <div id="study-flashcard" class="flashcard-3d" onclick="flipStudyCard()" style="width: 100%; height: 400px; position: relative; cursor: pointer; transition: transform 0.6s; transform-style: preserve-3d;">
+                            <div class="flashcard-front" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                                <div style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 1rem;">Question</div>
+                                <div id="study-question" style="font-size: 1.5rem; font-weight: 600; text-align: center; line-height: 1.6;"></div>
+                            </div>
+                            <div class="flashcard-back" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem; border-radius: 16px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: rotateY(180deg);">
+                                <div style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 1rem;">Answer</div>
+                                <div id="study-answer" style="font-size: 1.5rem; font-weight: 600; text-align: center; line-height: 1.6;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem;">
+                        <button class="btn-primary" onclick="previousStudyCard()">← Previous</button>
+                        <button class="btn-primary" onclick="flipStudyCard()">🔄 Flip Card</button>
+                        <button class="btn-primary" onclick="nextStudyCard()">Next →</button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <p style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; color: #1f2937;">How confident are you with this answer?</p>
+                        <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="rateStudyCard(1)" style="background: #fee2e2; color: #991b1b;">😰 Not at all</button>
+                            <button class="btn-primary" onclick="rateStudyCard(2)" style="background: #fef3c7; color: #92400e;">😕 Slightly</button>
+                            <button class="btn-primary" onclick="rateStudyCard(3)" style="background: #dbeafe; color: #1e40af;">😐 Somewhat</button>
+                            <button class="btn-primary" onclick="rateStudyCard(4)" style="background: #d1fae5; color: #065f46;">😊 Confident</button>
+                            <button class="btn-primary" onclick="rateStudyCard(5)" style="background: #ddd6fe; color: #5b21b6;">😎 Very confident</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="flashcards-grid" class="items-grid"></div>
+                <div id="flashcards-empty" class="empty-state" style="display: none;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">🎴</div>
+                    <h2>No flashcards yet</h2>
+                    <p>Create flashcards manually or generate them from your notes using AI</p>
+                    <button class="btn-primary" onclick="showModal('flashcard-modal')">Create Your First Card</button>
+                </div>
             </div>
         </div>
     </div>
@@ -413,6 +499,64 @@
             <div class="chat-input-container">
                 <textarea id="chat-input" placeholder="Ask me anything about your studies..." rows="2"></textarea>
                 <button onclick="sendChatMessage()" class="btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flashcard Modal -->
+    <div id="flashcard-modal" class="modal">
+        <div class="modal-content">
+            <div class="chat-header">
+                <h2>🎴 Create Flashcard</h2>
+                <button class="close-btn-red" onclick="closeModal('flashcard-modal')">&times;</button>
+            </div>
+            <div class="input-group">
+                <label>Question *</label>
+                <textarea id="flashcard-question" placeholder="Enter question..." rows="3" required></textarea>
+            </div>
+            <div class="input-group">
+                <label>Answer *</label>
+                <textarea id="flashcard-answer" placeholder="Enter answer..." rows="3" required></textarea>
+            </div>
+            <div class="input-group">
+                <label>Subject</label>
+                <input type="text" id="flashcard-subject" placeholder="e.g., Math, Biology" list="subjects-list">
+            </div>
+            <div class="input-group">
+                <label>Difficulty</label>
+                <select id="flashcard-difficulty" class="input">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="createFlashcard()">💾 Create Flashcard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Flashcard Modal -->
+    <div id="generate-flashcard-modal" class="modal">
+        <div class="modal-content">
+            <div class="chat-header">
+                <h2>✨ Generate Flashcards from Note</h2>
+                <button class="close-btn-red" onclick="closeModal('generate-flashcard-modal')">&times;</button>
+            </div>
+            <div class="input-group">
+                <label>Select Note *</label>
+                <select id="generate-note-select" class="input" required>
+                    <option value="">Choose a note...</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Number of Cards</label>
+                <input type="number" id="generate-card-count" class="input" value="5" min="1" max="20">
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateFlashcardsFromNote()">
+                    <span id="generate-flashcard-btn-text">✨ Generate</span>
+                </button>
             </div>
         </div>
     </div>

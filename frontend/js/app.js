@@ -5,6 +5,40 @@ const API_URL = (location.hostname === 'localhost' || location.hostname === '127
 let token = localStorage.getItem('token');
 let currentPage = 'dashboard';
 
+// Rotating study tips
+const STUDY_TIPS = [
+    "💡 Take a 5-10 minute break every hour to stay focused!",
+    "🎯 Use the Pomodoro Technique: 25 minutes of study, 5 minutes of rest",
+    "📚 Teach what you learn - it's the best way to remember",
+    "🌟 Study in the same place every day to build consistency",
+    "🧠 Sleep is crucial for memory consolidation - get 7-9 hours!",
+    "✍️ Handwriting notes improves retention compared to typing",
+    "🎵 Try ambient music or white noise while studying",
+    "🍎 Stay hydrated and eat brain-healthy snacks",
+    "📝 Review your notes within 24 hours for better retention",
+    "🎨 Use colors and diagrams to make concepts memorable",
+    "⏰ Study difficult subjects when you're most alert",
+    "🤝 Form study groups for collaborative learning",
+    "📖 Read actively - summarize each paragraph in your own words",
+    "🎯 Set specific, achievable goals for each study session",
+    "🧘 Practice mindfulness to reduce study-related stress"
+];
+
+function rotateStudyTip() {
+    const tip = STUDY_TIPS[Math.floor(Math.random() * STUDY_TIPS.length)];
+    const tipElement = document.getElementById('study-tip');
+    if (tipElement) {
+        tipElement.textContent = tip;
+        tipElement.style.animation = 'fadeIn 1s ease-in-out';
+    }
+}
+
+// Flashcard state
+let allFlashcards = [];
+let studyFlashcards = [];
+let currentStudyIndex = 0;
+let isCardFlipped = false;
+
 function showSignup() {
     document.querySelector('.auth-card:not(.hidden)').classList.add('hidden');
     document.getElementById('signup-card').classList.remove('hidden');
@@ -18,6 +52,10 @@ function showLogin() {
 // Check if token is valid on page load
 window.addEventListener('DOMContentLoaded', async () => {
     // Particles are initialized in simple-particles.js
+    
+    // Rotate study tip every 10 seconds
+    rotateStudyTip();
+    setInterval(rotateStudyTip, 10000);
     
     // If token exists, show app directly (no profile endpoint check needed)
     if (token) {
@@ -99,6 +137,7 @@ function updateNavBrand(page) {
         'dashboard': '🏠 Dashboard',
         'notes': '📝 Notes',
         'study': '📚 Study',
+        'flashcards': '🗂️ Flashcards',
         'community': '💬 Community',
         'wellbeing': '🧘 Wellbeing'
     };
@@ -116,6 +155,7 @@ function showPage(page) {
     else if (page === 'study') loadTasks();
     else if (page === 'community') loadPosts();
     else if (page === 'wellbeing') loadMoods();
+    else if (page === 'flashcards') loadFlashcardsPage();
 }
 
 async function loadDashboard() {
@@ -975,6 +1015,314 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============= FLASHCARDS FUNCTIONS =============
+
+async function loadFlashcardsPage() {
+    await loadFlashcards();
+    await loadFlashcardStats();
+    await populateGenerateNoteSelect();
+}
+
+async function loadFlashcards(subject = null) {
+    try {
+        const url = subject ? `${API_URL}/flashcards?subject=${encodeURIComponent(subject)}` : `${API_URL}/flashcards`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load flashcards');
+        
+        allFlashcards = await response.json();
+        displayFlashcards();
+        populateFlashcardSubjectFilter();
+    } catch (error) {
+        console.error('Error loading flashcards:', error);
+    }
+}
+
+function displayFlashcards() {
+    const grid = document.getElementById('flashcards-grid');
+    const empty = document.getElementById('flashcards-empty');
+    
+    if (allFlashcards.length === 0) {
+        grid.style.display = 'none';
+        empty.style.display = 'flex';
+        return;
+    }
+    
+    grid.style.display = 'grid';
+    empty.style.display = 'none';
+    
+    grid.innerHTML = allFlashcards.map(card => `
+        <div class="item-card">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                ${card.subject ? `<span class="badge">${card.subject}</span>` : '<span></span>'}
+                <span class="badge badge-${card.difficulty}">${card.difficulty}</span>
+            </div>
+            <h3>${card.question.substring(0, 100)}${card.question.length > 100 ? '...' : ''}</h3>
+            <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">
+                📚 Reviewed ${card.times_reviewed || 0}x · ⭐ Confidence ${card.confidence_level || 0}/5
+            </p>
+            <div class="button-group" style="margin-top: 1rem;">
+                <button class="btn-primary" onclick="startStudyMode('${card.id}')">Study</button>
+                <button class="btn-primary" onclick="deleteFlashcard('${card.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadFlashcardStats() {
+    try {
+        const response = await fetch(`${API_URL}/study/analytics`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        document.getElementById('total-flashcards').textContent = data.flashcard_stats.total || 0;
+        document.getElementById('total-reviews').textContent = data.flashcard_stats.total_reviews || 0;
+        const avgConf = data.flashcard_stats.avg_confidence || 0;
+        document.getElementById('avg-flashcard-confidence').textContent = avgConf.toFixed(1) + '/5';
+    } catch (error) {
+        console.error('Error loading flashcard stats:', error);
+    }
+}
+
+function populateFlashcardSubjectFilter() {
+    const subjects = [...new Set(allFlashcards.map(c => c.subject).filter(s => s))];
+    const select = document.getElementById('flashcard-subject-filter');
+    select.innerHTML = '<option value="">All Subjects</option>' +
+        subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function filterFlashcardsBySubject() {
+    const subject = document.getElementById('flashcard-subject-filter').value;
+    loadFlashcards(subject || null);
+}
+
+async function createFlashcard() {
+    const question = document.getElementById('flashcard-question').value;
+    const answer = document.getElementById('flashcard-answer').value;
+    const subject = document.getElementById('flashcard-subject').value || null;
+    const difficulty = document.getElementById('flashcard-difficulty').value;
+    
+    if (!question || !answer) {
+        alert('Please enter both question and answer');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/flashcards`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ question, answer, subject, difficulty })
+        });
+        
+        if (!response.ok) throw new Error('Failed to create flashcard');
+        
+        alert('✅ Flashcard created successfully!');
+        closeModal('flashcard-modal');
+        document.getElementById('flashcard-question').value = '';
+        document.getElementById('flashcard-answer').value = '';
+        document.getElementById('flashcard-subject').value = '';
+        await loadFlashcards();
+        await loadFlashcardStats();
+    } catch (error) {
+        console.error('Error creating flashcard:', error);
+        alert('❌ Failed to create flashcard');
+    }
+}
+
+async function populateGenerateNoteSelect() {
+    try {
+        const response = await fetch(`${API_URL}/notes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) return;
+        
+        const notes = await response.json();
+        const select = document.getElementById('generate-note-select');
+        select.innerHTML = '<option value="">Choose a note...</option>' +
+            notes.map(note => `<option value="${note.id}">${note.title}</option>`).join('');
+    } catch (error) {
+        console.error('Error loading notes:', error);
+    }
+}
+
+async function generateFlashcardsFromNote() {
+    const noteId = document.getElementById('generate-note-select').value;
+    const count = parseInt(document.getElementById('generate-card-count').value) || 5;
+    
+    if (!noteId) {
+        alert('Please select a note');
+        return;
+    }
+    
+    const btnText = document.getElementById('generate-flashcard-btn-text');
+    btnText.textContent = '⏳ Generating...';
+    
+    try {
+        const response = await fetch(`${API_URL}/flashcards/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ note_id: noteId, count })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to generate flashcards');
+        }
+        
+        const result = await response.json();
+        alert('✅ ' + result.message);
+        closeModal('generate-flashcard-modal');
+        await loadFlashcards();
+        await loadFlashcardStats();
+    } catch (error) {
+        console.error('Error generating flashcards:', error);
+        alert('❌ ' + error.message);
+    } finally {
+        btnText.textContent = '✨ Generate';
+    }
+}
+
+async function deleteFlashcard(cardId) {
+    if (!confirm('Delete this flashcard?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/flashcards/${cardId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete flashcard');
+        
+        alert('✅ Flashcard deleted');
+        await loadFlashcards();
+        await loadFlashcardStats();
+    } catch (error) {
+        console.error('Error deleting flashcard:', error);
+        alert('❌ Failed to delete flashcard');
+    }
+}
+
+function startStudyMode(cardId = null) {
+    if (cardId) {
+        const card = allFlashcards.find(c => c.id === cardId);
+        if (!card) return;
+        studyFlashcards = [card];
+    } else {
+        if (allFlashcards.length === 0) {
+            alert('No flashcards to study');
+            return;
+        }
+        studyFlashcards = [...allFlashcards];
+    }
+    
+    currentStudyIndex = 0;
+    isCardFlipped = false;
+    document.getElementById('flashcards-grid').style.display = 'none';
+    document.getElementById('flashcards-empty').style.display = 'none';
+    document.getElementById('flashcard-stats').style.display = 'none';
+    document.getElementById('study-mode').style.display = 'block';
+    displayStudyCard();
+}
+
+function exitStudyMode() {
+    document.getElementById('study-mode').style.display = 'none';
+    document.getElementById('flashcard-stats').style.display = 'grid';
+    displayFlashcards();
+}
+
+function displayStudyCard() {
+    if (studyFlashcards.length === 0) return;
+    
+    const card = studyFlashcards[currentStudyIndex];
+    document.getElementById('study-question').textContent = card.question;
+    document.getElementById('study-answer').textContent = card.answer;
+    document.getElementById('study-card-progress').textContent = `${currentStudyIndex + 1} / ${studyFlashcards.length}`;
+    
+    const flashcard = document.getElementById('study-flashcard');
+    flashcard.style.transform = 'rotateY(0deg)';
+    isCardFlipped = false;
+}
+
+function flipStudyCard() {
+    const flashcard = document.getElementById('study-flashcard');
+    isCardFlipped = !isCardFlipped;
+    flashcard.style.transform = isCardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
+}
+
+function nextStudyCard() {
+    if (currentStudyIndex < studyFlashcards.length - 1) {
+        currentStudyIndex++;
+        displayStudyCard();
+    } else {
+        alert('🎉 You\'ve reviewed all cards!');
+    }
+}
+
+function previousStudyCard() {
+    if (currentStudyIndex > 0) {
+        currentStudyIndex--;
+        displayStudyCard();
+    }
+}
+
+async function rateStudyCard(confidence) {
+    const card = studyFlashcards[currentStudyIndex];
+    
+    try {
+        const response = await fetch(`${API_URL}/flashcards/${card.id}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ confidence })
+        });
+        
+        if (!response.ok) throw new Error('Failed to record review');
+        
+        if (currentStudyIndex < studyFlashcards.length - 1) {
+            nextStudyCard();
+        } else {
+            alert('🎉 Study session complete!');
+            exitStudyMode();
+            await loadFlashcards();
+            await loadFlashcardStats();
+        }
+    } catch (error) {
+        console.error('Error recording review:', error);
+    }
+}
+
+// ============= GOOGLE CALENDAR INTEGRATION =============
+
+function connectGoogleCalendar() {
+    const clientId = ''; // User would need to set this up
+    
+    if (!clientId) {
+        alert('📅 Google Calendar Integration\n\nTo connect your Google Calendar:\n1. Create a Google Cloud project\n2. Enable Google Calendar API\n3. Create OAuth 2.0 credentials\n4. Add your Client ID to the app\n\nThis feature allows you to:\n• Sync study sessions\n• Add task deadlines to calendar\n• Get reminders for upcoming assignments\n\nFor now, you can manually add tasks to your Google Calendar!');
+        
+        // Open Google Calendar in new tab
+        window.open('https://calendar.google.com', '_blank');
+        return;
+    }
+    
+    // Future implementation would use Google Calendar API
+    // For now, just open Google Calendar
+    window.open('https://calendar.google.com', '_blank');
+}
 
 if (token) {
     showApp();
