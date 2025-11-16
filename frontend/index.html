@@ -172,14 +172,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Study Tips Section -->
-                <div class="study-tips-section">
-                    <div class="study-tip-container">
-                        <div class="study-tip-icon">💡</div>
-                        <p id="study-tip" class="study-tip-text">Loading study tip...</p>
-                    </div>
-                </div>
             </div>
 
             <div id="notes-page" class="page hidden">
@@ -213,7 +205,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                         <div style="display: flex; gap: 0.75rem; align-items: center;">
                             <label style="font-weight: 600; color: #1f2937; font-size: 1rem; margin-right: 0.5rem;">Sort by Subject:</label>
-                            <select id="flashcard-subject-filter" class="input" onchange="filterFlashcardsBySubject()" style="width: 220px; height: 48px; font-size: 1rem; font-weight: 500; border: 2px solid #3b82f6; background: white; cursor: pointer;">
+                            <select id="flashcard-subject-filter" class="input" onchange="filterFlashcardsBySubject()" style="width: 220px; height: 48px; font-size: 1rem; font-weight: 500; border: 2px solid #3b82f6; background: white; cursor: pointer; color: #000000;">
                                 <option value="">📚 All Subjects</option>
                             </select>
                             <button id="study-all-btn" class="btn-primary" onclick="startStudyMode()" style="background: #10b981; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); display: none;">📚 Study All Cards</button>

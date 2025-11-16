@@ -164,10 +164,6 @@ async function loadDashboard() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', options);
 
-    // Initialize study tips
-    rotateStudyTip();
-    setInterval(rotateStudyTip, 10000); // Rotate every 10 seconds
-
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
@@ -277,25 +273,23 @@ async function loadNotes() {
     if (response.status === 401) { alert('Session expired. Please log in again.'); logout(); return; }
     const json = response.ok ? await response.json() : [];
     const notes = Array.isArray(json) ? json : [];
-    allNotes = notes; // Store for detail view
+    allNotes = notes;
 
     const list = document.getElementById('notes-list');
+    if (notes.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p style="font-size: 1.2rem; color: #6b7280;">📝 No notes yet. Create your first note!</p></div>';
+        return;
+    }
+    
     list.innerHTML = notes.map(note => {
-        // Check if content contains HTML tags (AI-generated study plans)
-        const isHTML = note.content.includes('<h2>') || note.content.includes('<h3>') || note.content.includes('<ul>');
-        const displayContent = isHTML 
-            ? note.content.substring(0, 300) + (note.content.length > 300 ? '...' : '')
-            : note.content.substring(0, 200) + (note.content.length > 200 ? '...' : '');
-        
+        const preview = note.content.substring(0, 150);
         return `
-        <div class="item-card" style="cursor: pointer;" onclick="viewNoteDetail('${note.id}')">
+        <div class="item-card" onclick="viewNoteDetail('${note.id}')">
             <h3>${note.title}</h3>
-            <div style="max-height: 150px; overflow: hidden; margin: 1rem 0;">
-                ${isHTML ? displayContent : `<p>${displayContent}</p>`}
-            </div>
+            <p style="color: #6b7280; margin: 0.5rem 0; line-height: 1.6;">${preview}${note.content.length > 150 ? '...' : ''}</p>
             <div class="item-meta">
                 ${note.subject ? `<span class="badge badge-status">${note.subject}</span>` : ''}
-                <span style="color: #6b7280; font-size: 0.875rem;">${new Date(note.created_at).toLocaleDateString()}</span>
+                <span style="color: #9ca3af; font-size: 0.875rem;">📅 ${new Date(note.created_at).toLocaleDateString()}</span>
                 <button class="button" onclick="event.stopPropagation(); deleteNote('${note.id}')">
                     <svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
                 </button>

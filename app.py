@@ -532,7 +532,7 @@ async def generate_study_plan(data: dict, user_id: str = Depends(get_current_use
         return {"study_plan": "⚠️ AI study plan generation not configured. Please add your Gemini API key to the .env file."}
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         subject = data.get('subject', 'General Studies')
         topics = data.get('topics', [])
         timeline = data.get('timeline', 'one week')
@@ -604,7 +604,7 @@ async def ai_chat(data: dict, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Empty message")
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         history_text = "\n".join([
             (f"User: {m['content']}" if m.get('role') == 'user' else f"Assistant: {m.get('content','')}")
             for m in history[-6:]
@@ -741,7 +741,7 @@ async def generate_flashcards_from_note(data: dict, user_id: str = Depends(get_c
         note = dict(note_row)
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""Based on the following study note, generate exactly {count} flashcards.
 
 Note Title: {note['title']}
