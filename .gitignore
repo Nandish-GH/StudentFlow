@@ -10,3 +10,5 @@ studentflow.db
 node_modules/
 frontend/assets/favicon*
 *.log
+firebase-service-account.json
+data/

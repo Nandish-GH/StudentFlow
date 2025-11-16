@@ -14,10 +14,47 @@ import uuid
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+import json
+
+# Firebase Admin SDK
+try:
+    import firebase_admin
+    from firebase_admin import credentials, auth as firebase_auth, firestore
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
+    print("[Warning] Firebase Admin SDK not installed")
 
 load_dotenv()
 
 print("Open http://localhost:8080/")
+
+# Initialize Firebase Admin SDK
+if FIREBASE_AVAILABLE:
+    try:
+        # Try to load service account from file
+        service_account_path = "firebase-service-account.json"
+        if os.path.exists(service_account_path):
+            cred = credentials.Certificate(service_account_path)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': os.getenv('FIREBASE_DATABASE_URL', 'https://studentflow-dc8c3-default-rtdb.firebaseio.com')
+            })
+            print("[Firebase] ✅ Initialized with service account file")
+        else:
+            # Try to load from environment variable
+            service_account_json = os.getenv('FIREBASE_SERVICE_ACCOUNT')
+            if service_account_json:
+                cred = credentials.Certificate(json.loads(service_account_json))
+                firebase_admin.initialize_app(cred, {
+                    'databaseURL': os.getenv('FIREBASE_DATABASE_URL', 'https://studentflow-dc8c3-default-rtdb.firebaseio.com')
+                })
+                print("[Firebase] ✅ Initialized with environment variable")
+            else:
+                print("[Firebase] ⚠️  No service account found - Firebase features will be limited")
+    except Exception as e:
+        print(f"[Firebase] ❌ Initialization error: {e}")
+else:
+    print("[Firebase] ⚠️  Firebase Admin SDK not available")
 
 # Database path - persistent storage for Cloud Run
 DB_PATH = os.getenv("DB_PATH", "studentflow.db")
