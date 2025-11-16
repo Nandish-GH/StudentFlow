@@ -1,11 +1,11 @@
 // Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyC_Qx0WNoFnWi_re0epldCW2mqgYPCJSz0",
-    authDomain: "studentflow-478406.firebaseapp.com",
-    projectId: "studentflow-478406",
-    storageBucket: "studentflow-478406.appspot.com",
-    messagingSenderId: "873155023482",
-    appId: "1:873155023482:web:YOUR_APP_ID"
+    authDomain: "studentflow-dc8c3.firebaseapp.com",
+    projectId: "studentflow-dc8c3",
+    storageBucket: "studentflow-dc8c3.appspot.com",
+    messagingSenderId: "494129898410",
+    appId: "1:494129898410:web:YOUR_APP_ID"
 };
 
 // Initialize Firebase
@@ -1480,6 +1480,28 @@ async function rateStudyCard(confidence) {
 }
 
 // ============= GOOGLE CALENDAR INTEGRATION =============
+
+function showEmbeddedCalendar() {
+    // Show embedded Google Calendar in modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 1200px; max-height: 95vh; padding: 0;">
+            <div class="chat-header" style="padding: 1.5rem; background: #EA4335; color: white;">
+                <h2 style="margin: 0; color: white;">📅 Google Calendar</h2>
+                <button class="close-btn-red" onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); color: white;">&times;</button>
+            </div>
+            <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&bgcolor=%23ffffff&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showTabs=1&showCalendars=0" 
+                style="width: 100%; height: 700px; border: none;"
+                frameborder="0"
+                scrolling="no">
+            </iframe>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
 
 async function connectGoogleCalendar() {
     try {
