@@ -203,9 +203,12 @@
                 <div class="page-header" style="margin-bottom: 2rem;">
                     <h1 style="margin-bottom: 1.5rem;">🎴 Flashcards</h1>
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                        <select id="flashcard-subject-filter" class="input" onchange="filterFlashcardsBySubject()" style="width: 200px; height: 44px;">
-                            <option value="">All Subjects</option>
-                        </select>
+                        <div style="display: flex; gap: 0.75rem; align-items: center;">
+                            <select id="flashcard-subject-filter" class="input" onchange="filterFlashcardsBySubject()" style="width: 200px; height: 44px;">
+                                <option value="">All Subjects</option>
+                            </select>
+                            <button id="study-all-btn" class="btn-primary" onclick="startStudyMode()" style="background: #10b981; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); display: none;">📚 Study All Cards</button>
+                        </div>
                         <div style="display: flex; gap: 0.75rem;">
                             <button class="btn-primary" onclick="showModal('generate-flashcard-modal')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">✨ Generate from Note</button>
                             <button class="btn-primary" onclick="showModal('flashcard-modal')" style="background: #3b82f6; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">+ New Flashcard</button>
@@ -279,10 +282,13 @@
 
                 <div id="flashcards-grid" class="items-grid"></div>
                 <div id="flashcards-empty" class="empty-state" style="display: none;">
-                    <div style="font-size: 5rem; margin-bottom: 1.5rem;">🎴</div>
-                    <h2 style="font-size: 1.75rem; font-weight: 700; color: #1f2937; margin-bottom: 0.75rem;">No flashcards yet</h2>
-                    <p style="font-size: 1.125rem; color: #6b7280; margin-bottom: 2rem; max-width: 500px;">Create flashcards manually or generate them from your notes using AI</p>
-                    <button class="btn-primary" onclick="showModal('flashcard-modal')" style="padding: 1rem 2.5rem; font-size: 1.125rem; background: #3b82f6; border: none; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4); transition: all 0.3s ease;">Create Your First Card</button>
+                    <div style="font-size: 6rem; margin-bottom: 2rem; opacity: 0.9;">🎴</div>
+                    <h2 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">No flashcards yet</h2>
+                    <p style="font-size: 1.125rem; color: #6b7280; margin-bottom: 2.5rem; max-width: 550px; line-height: 1.6;">Start building your study toolkit! Create flashcards manually or let AI generate them from your notes in seconds.</p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <button class="btn-primary" onclick="showModal('flashcard-modal')" style="padding: 1rem 2rem; font-size: 1.125rem; background: #3b82f6; border: none; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4); transition: all 0.3s ease;">✍️ Create Manually</button>
+                        <button class="btn-primary" onclick="showModal('generate-flashcard-modal')" style="padding: 1rem 2rem; font-size: 1.125rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">✨ Generate with AI</button>
+                    </div>
                 </div>
             </div>
         </div>

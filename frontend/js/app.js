@@ -1044,32 +1044,53 @@ async function loadFlashcards(subject = null) {
 function displayFlashcards() {
     const grid = document.getElementById('flashcards-grid');
     const empty = document.getElementById('flashcards-empty');
+    const studyAllBtn = document.getElementById('study-all-btn');
     
     if (allFlashcards.length === 0) {
         grid.style.display = 'none';
         empty.style.display = 'flex';
+        if (studyAllBtn) studyAllBtn.style.display = 'none';
         return;
     }
     
     grid.style.display = 'grid';
     empty.style.display = 'none';
+    if (studyAllBtn) studyAllBtn.style.display = 'inline-block';
     
-    grid.innerHTML = allFlashcards.map(card => `
-        <div class="item-card">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                ${card.subject ? `<span class="badge">${card.subject}</span>` : '<span></span>'}
-                <span class="badge badge-${card.difficulty}">${card.difficulty}</span>
+    grid.innerHTML = allFlashcards.map(card => {
+        const difficultyColors = {
+            'easy': 'background: #d1fae5; color: #065f46;',
+            'medium': 'background: #fef3c7; color: #92400e;',
+            'hard': 'background: #fee2e2; color: #991b1b;'
+        };
+        const difficultyStyle = difficultyColors[card.difficulty] || difficultyColors['medium'];
+        
+        return `
+        <div class="item-card" style="position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                ${card.subject ? `<span class="badge" style="background: #e0e7ff; color: #4338ca; font-weight: 600;">📚 ${card.subject}</span>` : '<span></span>'}
+                <span class="badge" style="${difficultyStyle} font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">${card.difficulty}</span>
             </div>
-            <h3>${card.question.substring(0, 100)}${card.question.length > 100 ? '...' : ''}</h3>
-            <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">
-                📚 Reviewed ${card.times_reviewed || 0}x · ⭐ Confidence ${card.confidence_level || 0}/5
-            </p>
-            <div class="button-group" style="margin-top: 1rem;">
-                <button class="btn-primary" onclick="startStudyMode('${card.id}')">Study</button>
-                <button class="btn-primary" onclick="deleteFlashcard('${card.id}')">Delete</button>
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; margin-bottom: 0.5rem;">Question</div>
+                <h3 style="font-size: 1rem; line-height: 1.5;">${card.question.length > 120 ? card.question.substring(0, 120) + '...' : card.question}</h3>
+            </div>
+            <div style="padding: 0.75rem; background: #f9fafb; border-radius: 8px; border-left: 3px solid #4f46e5; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Answer Preview</div>
+                <p style="color: #6b7280; font-size: 0.875rem;">${card.answer.length > 100 ? card.answer.substring(0, 100) + '...' : card.answer}</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+                <div style="color: #6b7280; font-size: 0.75rem; display: flex; gap: 1rem;">
+                    <span>📚 ${card.times_reviewed || 0}x</span>
+                    <span>⭐ ${card.confidence_level || 0}/5</span>
+                </div>
+                <div class="button-group" style="gap: 0.5rem;">
+                    <button class="btn-primary" onclick="startStudyMode('${card.id}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #10b981;">Study</button>
+                    <button class="btn-primary" onclick="deleteFlashcard('${card.id}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #ef4444;">Delete</button>
+                </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 async function loadFlashcardStats() {

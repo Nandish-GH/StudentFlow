@@ -19,8 +19,9 @@ load_dotenv()
 
 print("Open http://localhost:8080/")
 
-# Database path - use /tmp for Google App Engine
-DB_PATH = os.getenv("GAE_ENV") and "/tmp/studentflow.db" or "studentflow.db"
+# Database path - persistent storage for Cloud Run
+DB_PATH = os.getenv("DB_PATH", "studentflow.db")
+print(f"[Database] Using database at: {DB_PATH}")
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -553,10 +554,41 @@ Please provide:
 4. Practice exercises or activities
 5. Tips for retaining information
 
-Format the plan clearly with headers and bullet points."""
+Format the response as clean, readable HTML with:
+- Use <h2> for main section headings (e.g., "Day 1: Introduction")
+- Use <h3> for subsection headings
+- Use <ul> and <li> for bullet lists
+- Use <p> for paragraphs
+- Use <strong> for emphasis
+- Use <code> for specific terms or formulas
+- Make it visually scannable with proper spacing
+
+Start with a brief overview, then provide the detailed day-by-day plan."""
         
         response = model.generate_content(prompt)
-        return {"study_plan": response.text.strip()}
+        plan_text = response.text.strip()
+        
+        # Convert markdown to HTML if AI returns markdown
+        import re
+        if '##' in plan_text or '**' in plan_text:
+            # Convert markdown headings to HTML
+            plan_text = re.sub(r'### (.+)', r'<h3>\1</h3>', plan_text)
+            plan_text = re.sub(r'## (.+)', r'<h2>\1</h2>', plan_text)
+            plan_text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', plan_text)
+            plan_text = re.sub(r'- (.+)', r'<li>\1</li>', plan_text)
+            # Wrap consecutive <li> tags in <ul>
+            plan_text = re.sub(r'(<li>.*?</li>\n)+', r'<ul>\g<0></ul>', plan_text, flags=re.DOTALL)
+            # Add paragraph tags
+            lines = plan_text.split('\n')
+            formatted_lines = []
+            for line in lines:
+                if line.strip() and not line.startswith('<'):
+                    formatted_lines.append(f'<p>{line}</p>')
+                else:
+                    formatted_lines.append(line)
+            plan_text = '\n'.join(formatted_lines)
+        
+        return {"study_plan": plan_text}
     except Exception as e:
         print(f"[AI Study Plan Error] {type(e).__name__}: {str(e)}")
         return {"study_plan": f"Error generating study plan: {type(e).__name__}: {str(e)}"}
