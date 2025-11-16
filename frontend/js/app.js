@@ -164,6 +164,10 @@ async function loadDashboard() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', options);
 
+    // Initialize study tips
+    rotateStudyTip();
+    setInterval(rotateStudyTip, 10000); // Rotate every 10 seconds
+
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
@@ -389,13 +393,14 @@ async function loadTasks() {
                 <span class="badge badge-status">${task.status}</span>
                 ${task.subject ? `<span class="badge badge-status">${task.subject}</span>` : ''}
             </div>
-            <div class="item-actions">
+            <div class="item-actions" style="display: flex; gap: 0.5rem; align-items: center;">
                 <label class="task-check" title="Complete task">
                     <input type="checkbox" onchange="completeTaskWithAnimation('${task.id}', this)">
                     <svg viewBox="0 0 64 64" aria-hidden="true">
                         <path d="M 0 16 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 16 L 32 48 L 64 16 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 16" pathLength="575.0541381835938" class="path"></path>
                     </svg>
                 </label>
+                <button class="btn-link" onclick="addTaskToCalendar('${task.id}', '${task.title.replace(/'/g, "\\'")}'${task.due_date ? `, '${task.due_date}'` : ''})" title="Add to Google Calendar" style="padding: 0.5rem; background: #4285f4; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.875rem;">📅 Add to Calendar</button>
             </div>
         </div>
     `).join('');
@@ -447,6 +452,32 @@ async function updateTaskStatus(id, status) {
         body: JSON.stringify({ status })
     });
     loadTasks();
+}
+
+async function addTaskToCalendar(taskId, taskTitle, dueDate = null) {
+    try {
+        // Create event details
+        const startDate = dueDate ? new Date(dueDate) : new Date();
+        const endDate = new Date(startDate);
+        endDate.setHours(startDate.getHours() + 1); // 1 hour event
+
+        // Format dates for Google Calendar URL
+        const formatDate = (date) => {
+            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        };
+
+        // Create Google Calendar event URL
+        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+            `&text=${encodeURIComponent(taskTitle)}` +
+            `&dates=${formatDate(startDate)}/${formatDate(endDate)}` +
+            `&details=${encodeURIComponent('Task from StudentFlow')}` +
+            `&sf=true&output=xml`;
+
+        // Open in new window
+        window.open(calendarUrl, '_blank', 'width=800,height=600');
+    } catch (err) {
+        alert('Failed to create calendar event: ' + err.message);
+    }
 }
 
 async function deleteTask(id) {
