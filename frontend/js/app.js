@@ -467,8 +467,29 @@ async function addTaskToCalendar(taskId, taskTitle, dueDate = null) {
             `&details=${encodeURIComponent('Task from StudentFlow')}` +
             `&sf=true&output=xml`;
 
-        // Open in new window
-        window.open(calendarUrl, '_blank', 'width=800,height=600');
+        // Show embedded calendar in modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 1000px; max-height: 90vh; padding: 0;">
+                <div class="chat-header" style="padding: 1.5rem; background: #4285f4; color: white;">
+                    <h2 style="margin: 0; color: white;">📅 Add to Google Calendar</h2>
+                    <button class="close-btn-red" onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); color: white;">&times;</button>
+                </div>
+                <div style="padding: 1rem; background: #f9fafb;">
+                    <p style="margin: 0 0 1rem 0; color: #1f2937;"><strong>Task:</strong> ${taskTitle}</p>
+                    <p style="margin: 0 0 1rem 0; color: #6b7280; font-size: 0.875rem;">Click "Save" in the calendar below to add this event</p>
+                </div>
+                <iframe src="${calendarUrl}" 
+                    style="width: 100%; height: 600px; border: none; border-top: 1px solid #e5e7eb;"
+                    frameborder="0"
+                    scrolling="yes">
+                </iframe>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     } catch (err) {
         alert('Failed to create calendar event: ' + err.message);
     }
