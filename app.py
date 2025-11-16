@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -123,6 +123,14 @@ if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 security = HTTPBearer()
+
+@app.get("/api")
+async def api_root():
+    return {"name": "StudentFlow API", "version": "1.0", "docs": "/docs"}
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
 
 class UserRegister(BaseModel):
     email: EmailStr
