@@ -4,8 +4,7 @@ entrypoint: python app.py
 
 env_variables:
   SECRET_KEY: "169a765d26005d18dcaf04d2453f37fb"
-  # Add your GEMINI_API_KEY here or set it in GCloud console
-  # GEMINI_API_KEY: "your-key-here"
+  GEMINI_API_KEY: "AIzaSyDM0L5w4-APrtv3T2t-ndbe8TDpU_sMngs"
 
 handlers:
 - url: /static

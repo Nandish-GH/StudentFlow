@@ -19,8 +19,8 @@ load_dotenv()
 
 print("Open http://localhost:8080/")
 
-# Database path
-DB_PATH = "studentflow.db"
+# Database path - use /tmp for Google App Engine
+DB_PATH = os.getenv("GAE_ENV") and "/tmp/studentflow.db" or "studentflow.db"
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -559,4 +559,5 @@ app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

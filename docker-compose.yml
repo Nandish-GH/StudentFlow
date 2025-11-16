@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  studentflow:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SECRET_KEY=169a765d26005d18dcaf04d2453f37fb
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
