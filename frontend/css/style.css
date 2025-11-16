@@ -530,7 +530,7 @@ body {
 }
 .chat-message.ai .bubble {
     background: linear-gradient(180deg, rgba(0,217,255,0.08), rgba(0,217,255,0.03));
-    color: #e6faff;
+    color: #000000;
     border: 1px solid rgba(0,217,255,0.14);
     box-shadow: 0 4px 12px rgba(0,0,0,0.18);
     border-top-left-radius: 4px;
