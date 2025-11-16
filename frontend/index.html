@@ -67,6 +67,7 @@
                 <button onclick="showPage('dashboard')">Dashboard</button>
                 <button onclick="showPage('notes')">Notes</button>
                 <button onclick="showPage('study')">Study</button>
+                <button onclick="window.location.href='/flashcards.html'">Flashcards</button>
                 <button onclick="showPage('community')">Community</button>
                 <button onclick="showPage('wellbeing')">Wellbeing</button>
                 <button class="Btn" onclick="logout()" title="Logout">
@@ -103,8 +104,9 @@
                     <div class="stat-card green">
                         <div class="stat-icon">🔥</div>
                         <div class="stat-info">
-                            <p class="stat-label">Mood Streak</p>
+                            <p class="stat-label">Study Streak</p>
                             <p class="stat-number" id="stat-streak">0</p>
+                            <p class="stat-sublabel" id="stat-streak-text">days</p>
                         </div>
                     </div>
                     <div class="stat-card purple">

@@ -131,7 +131,7 @@ async function loadDashboard() {
             fetch(`${API_URL}/notes`, { headers }),
             fetch(`${API_URL}/study/tasks`, { headers }),
             fetch(`${API_URL}/community/posts`, { headers }),
-            fetch(`${API_URL}/wellbeing/mood-streak`, { headers })
+            fetch(`${API_URL}/study/streak`, { headers })
         ]);
 
         if ([notesResp, tasksResp, postsResp, streakResp].some(r => r.status === 401)) {
@@ -152,6 +152,9 @@ async function loadDashboard() {
         document.getElementById('stat-notes').textContent = notes.length || 0;
         document.getElementById('stat-tasks').textContent = (Array.isArray(tasks) ? tasks.filter(t => t.status === 'pending').length : 0) || 0;
         document.getElementById('stat-streak').textContent = (streakData.current_streak || 0);
+        if (document.getElementById('stat-streak-text')) {
+            document.getElementById('stat-streak-text').textContent = (streakData.current_streak === 1 ? 'day' : 'days');
+        }
         document.getElementById('stat-posts').textContent = (Array.isArray(posts) ? posts.length : 0) || 0;
 
         // Load recent notes
@@ -380,6 +383,8 @@ function completeTaskWithAnimation(id, checkboxEl) {
     // If checked: add pending style and schedule deletion
     if (checkboxEl.checked) {
         if (card) card.classList.add('task-pending-delete');
+        // Log study session when task is completed (5 min per task)
+        logStudySession(5);
         // 3000ms = a few seconds for the user to see the effect
         const timeoutId = setTimeout(() => {
             deleteTask(id);
@@ -393,6 +398,22 @@ function completeTaskWithAnimation(id, checkboxEl) {
             delete checkboxEl.dataset.deleteTimeout;
         }
         if (card) card.classList.remove('task-pending-delete');
+    }
+}
+
+// Log study session
+async function logStudySession(duration) {
+    try {
+        await fetch(`${API_URL}/study/session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ duration })
+        });
+    } catch (err) {
+        console.error('Failed to log study session:', err);
     }
 }
 

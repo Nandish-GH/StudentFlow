@@ -100,6 +100,31 @@ async def init_db():
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS flashcards (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                note_id TEXT,
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                subject TEXT,
+                difficulty TEXT DEFAULT 'medium',
+                last_reviewed TEXT,
+                times_reviewed INTEGER DEFAULT 0,
+                confidence_level INTEGER DEFAULT 0,
+                created_at TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS study_sessions (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                date TEXT,
+                duration INTEGER,
+                created_at TEXT,
+                UNIQUE(user_id, date)
+            )
+        """)
         await db.commit()
 
 @asynccontextmanager
@@ -171,6 +196,16 @@ class MoodLog(BaseModel):
     energy_level: Optional[int] = None
     stress_level: Optional[int] = None
     notes: Optional[str] = None
+
+class Flashcard(BaseModel):
+    question: str
+    answer: str
+    subject: Optional[str] = None
+    difficulty: str = "medium"
+    note_id: Optional[str] = None
+
+class StudySession(BaseModel):
+    duration: int  # in minutes
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -554,6 +589,318 @@ Assistant:"""
     except Exception as e:
         print(f"[AI Chat Error] {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+# ============= FLASHCARDS ENDPOINTS =============
+
+@app.post("/api/flashcards")
+async def create_flashcard(flashcard: Flashcard, user_id: str = Depends(get_current_user)):
+    """Create a new flashcard"""
+    card_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO flashcards (id, user_id, note_id, question, answer, subject, 
+               difficulty, times_reviewed, confidence_level, created_at) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?)""",
+            (card_id, user_id, flashcard.note_id, flashcard.question, flashcard.answer,
+             flashcard.subject, flashcard.difficulty, now)
+        )
+        await db.commit()
+    
+    return {"id": card_id, "message": "Flashcard created successfully"}
+
+@app.get("/api/flashcards")
+async def get_flashcards(user_id: str = Depends(get_current_user), subject: Optional[str] = None):
+    """Get all flashcards for the user, optionally filtered by subject"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if subject:
+            cursor = await db.execute(
+                "SELECT * FROM flashcards WHERE user_id = ? AND subject = ? ORDER BY created_at DESC",
+                (user_id, subject)
+            )
+        else:
+            cursor = await db.execute(
+                "SELECT * FROM flashcards WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,)
+            )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+@app.get("/api/flashcards/{card_id}")
+async def get_flashcard(card_id: str, user_id: str = Depends(get_current_user)):
+    """Get a specific flashcard"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM flashcards WHERE id = ? AND user_id = ?",
+            (card_id, user_id)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Flashcard not found")
+        return dict(row)
+
+@app.put("/api/flashcards/{card_id}")
+async def update_flashcard(card_id: str, flashcard: Flashcard, user_id: str = Depends(get_current_user)):
+    """Update a flashcard"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE flashcards SET question = ?, answer = ?, subject = ?, difficulty = ?
+               WHERE id = ? AND user_id = ?""",
+            (flashcard.question, flashcard.answer, flashcard.subject, flashcard.difficulty, card_id, user_id)
+        )
+        await db.commit()
+        if db.total_changes == 0:
+            raise HTTPException(status_code=404, detail="Flashcard not found")
+    
+    return {"message": "Flashcard updated successfully"}
+
+@app.delete("/api/flashcards/{card_id}")
+async def delete_flashcard(card_id: str, user_id: str = Depends(get_current_user)):
+    """Delete a flashcard"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM flashcards WHERE id = ? AND user_id = ?", (card_id, user_id))
+        await db.commit()
+        if db.total_changes == 0:
+            raise HTTPException(status_code=404, detail="Flashcard not found")
+    
+    return {"message": "Flashcard deleted successfully"}
+
+@app.post("/api/flashcards/{card_id}/review")
+async def review_flashcard(card_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Mark a flashcard as reviewed and update confidence level"""
+    confidence = data.get('confidence', 0)  # 0-5 scale
+    now = datetime.now(timezone.utc).isoformat()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE flashcards 
+               SET last_reviewed = ?, times_reviewed = times_reviewed + 1, confidence_level = ?
+               WHERE id = ? AND user_id = ?""",
+            (now, confidence, card_id, user_id)
+        )
+        await db.commit()
+        if db.total_changes == 0:
+            raise HTTPException(status_code=404, detail="Flashcard not found")
+    
+    return {"message": "Review recorded successfully"}
+
+@app.post("/api/flashcards/generate")
+async def generate_flashcards_from_note(data: dict, user_id: str = Depends(get_current_user)):
+    """AI-powered: Generate flashcards from a note"""
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="AI not configured")
+    
+    note_id = data.get('note_id')
+    count = data.get('count', 5)
+    
+    # Get the note content
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM notes WHERE id = ? AND user_id = ?",
+            (note_id, user_id)
+        )
+        note_row = await cursor.fetchone()
+        if not note_row:
+            raise HTTPException(status_code=404, detail="Note not found")
+        note = dict(note_row)
+    
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = f"""Based on the following study note, generate exactly {count} flashcards.
+
+Note Title: {note['title']}
+Note Content:
+{note['content']}
+
+Generate {count} flashcards in this EXACT JSON format (no markdown, no code blocks):
+[
+  {{"question": "Q1 here", "answer": "A1 here"}},
+  {{"question": "Q2 here", "answer": "A2 here"}}
+]
+
+Focus on key concepts, definitions, and important facts. Make questions clear and answers concise."""
+        
+        response = model.generate_content(prompt)
+        cards_text = response.text.strip()
+        
+        # Clean up markdown code blocks if present
+        if cards_text.startswith('```'):
+            lines = cards_text.split('\n')
+            cards_text = '\n'.join([l for l in lines if not l.startswith('```')])
+        cards_text = cards_text.strip()
+        
+        import json
+        cards_data = json.loads(cards_text)
+        
+        # Insert flashcards into database
+        now = datetime.now(timezone.utc).isoformat()
+        created_ids = []
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            for card in cards_data[:count]:
+                card_id = str(uuid.uuid4())
+                await db.execute(
+                    """INSERT INTO flashcards (id, user_id, note_id, question, answer, subject, 
+                       difficulty, times_reviewed, confidence_level, created_at) 
+                       VALUES (?, ?, ?, ?, ?, ?, 'medium', 0, 0, ?)""",
+                    (card_id, user_id, note_id, card['question'], card['answer'], note['subject'], now)
+                )
+                created_ids.append(card_id)
+            await db.commit()
+        
+        return {"message": f"Generated {len(created_ids)} flashcards", "flashcard_ids": created_ids}
+    
+    except json.JSONDecodeError as e:
+        print(f"[Flashcard Gen Error] JSON parse failed: {str(e)}\nResponse: {cards_text}")
+        raise HTTPException(status_code=500, detail="AI response parsing failed")
+    except Exception as e:
+        print(f"[Flashcard Gen Error] {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============= STUDY STREAK ENDPOINTS =============
+
+@app.post("/api/study/session")
+async def log_study_session(session: StudySession, user_id: str = Depends(get_current_user)):
+    """Log a study session for today"""
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    session_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Try to update existing session for today
+        cursor = await db.execute(
+            "SELECT id, duration FROM study_sessions WHERE user_id = ? AND date = ?",
+            (user_id, today)
+        )
+        existing = await cursor.fetchone()
+        
+        if existing:
+            # Add to existing session duration
+            new_duration = existing[1] + session.duration
+            await db.execute(
+                "UPDATE study_sessions SET duration = ? WHERE id = ?",
+                (new_duration, existing[0])
+            )
+        else:
+            # Create new session
+            await db.execute(
+                "INSERT INTO study_sessions (id, user_id, date, duration, created_at) VALUES (?, ?, ?, ?, ?)",
+                (session_id, user_id, today, session.duration, now)
+            )
+        await db.commit()
+    
+    return {"message": "Study session logged successfully"}
+
+@app.get("/api/study/streak")
+async def get_study_streak(user_id: str = Depends(get_current_user)):
+    """Get current study streak and statistics"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT date, duration FROM study_sessions WHERE user_id = ? ORDER BY date DESC",
+            (user_id,)
+        )
+        sessions = await cursor.fetchall()
+        
+        if not sessions:
+            return {"current_streak": 0, "longest_streak": 0, "total_sessions": 0, "total_minutes": 0}
+        
+        from datetime import date, timedelta
+        dates = [datetime.fromisoformat(s['date'] + 'T00:00:00').date() if 'T' not in s['date'] else datetime.fromisoformat(s['date']).date() for s in sessions]
+        total_minutes = sum(s['duration'] for s in sessions)
+        
+        # Calculate current streak
+        today = date.today()
+        current_streak = 0
+        check_date = today
+        
+        while check_date in dates:
+            current_streak += 1
+            check_date -= timedelta(days=1)
+        
+        # If no session today, check if yesterday had one
+        if today not in dates and current_streak == 0:
+            yesterday = today - timedelta(days=1)
+            if yesterday in dates:
+                current_streak = 1
+                check_date = yesterday - timedelta(days=1)
+                while check_date in dates:
+                    current_streak += 1
+                    check_date -= timedelta(days=1)
+        
+        # Calculate longest streak
+        longest_streak = 0
+        temp_streak = 0
+        prev_date = None
+        
+        for d in sorted(dates):
+            if prev_date is None or d == prev_date + timedelta(days=1):
+                temp_streak += 1
+                longest_streak = max(longest_streak, temp_streak)
+            else:
+                temp_streak = 1
+            prev_date = d
+        
+        return {
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+            "total_sessions": len(sessions),
+            "total_minutes": total_minutes
+        }
+
+@app.get("/api/study/analytics")
+async def get_study_analytics(user_id: str = Depends(get_current_user)):
+    """Get study analytics for charts"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # Get last 30 days of study sessions
+        cursor = await db.execute(
+            """SELECT date, duration FROM study_sessions 
+               WHERE user_id = ? 
+               ORDER BY date DESC LIMIT 30""",
+            (user_id,)
+        )
+        sessions = [dict(row) for row in await cursor.fetchall()]
+        
+        # Get task completion stats
+        cursor = await db.execute(
+            """SELECT status, COUNT(*) as count FROM tasks 
+               WHERE user_id = ? 
+               GROUP BY status""",
+            (user_id,)
+        )
+        task_stats = {row['status']: row['count'] for row in await cursor.fetchall()}
+        
+        # Get notes by subject
+        cursor = await db.execute(
+            """SELECT subject, COUNT(*) as count FROM notes 
+               WHERE user_id = ? 
+               GROUP BY subject""",
+            (user_id,)
+        )
+        notes_by_subject = {row['subject']: row['count'] for row in await cursor.fetchall()}
+        
+        # Get flashcard stats
+        cursor = await db.execute(
+            """SELECT COUNT(*) as total, 
+               AVG(confidence_level) as avg_confidence,
+               SUM(times_reviewed) as total_reviews
+               FROM flashcards WHERE user_id = ?""",
+            (user_id,)
+        )
+        flashcard_stats = dict(await cursor.fetchone())
+        
+        return {
+            "study_sessions": sessions,
+            "task_stats": task_stats,
+            "notes_by_subject": notes_by_subject,
+            "flashcard_stats": flashcard_stats
+        }
 
 @app.get("/favicon.ico")
 async def favicon():
