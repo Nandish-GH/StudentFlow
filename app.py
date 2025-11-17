@@ -256,11 +256,21 @@ def create_token(user_id: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    Verify Firebase ID token and return the user ID (Firebase UID)
+    """
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
-        return payload["user_id"]
-    except:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        if FIREBASE_AVAILABLE:
+            # Verify Firebase ID token
+            decoded_token = firebase_auth.verify_id_token(credentials.credentials)
+            return decoded_token['uid']
+        else:
+            # Fallback to JWT if Firebase not available
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
+            return payload["user_id"]
+    except Exception as e:
+        print(f"[Auth] Token verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 @app.post("/api/auth/register")
 async def register(user: UserRegister):

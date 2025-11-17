@@ -1,0 +1,16 @@
+# Ignore files not needed inside Docker build context
+.git
+.gitignore
+.gcloudignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+studentflow.db
+node_modules
+.vscode
+.DS_Store
+*.log
+# Keep service account in image for Cloud Run, but never commit to git
+# firebase-service-account.json is intentionally included in build, but ignored by git

@@ -1,11 +1,13 @@
 // Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyC_Qx0WNoFnWi_re0epldCW2mqgYPCJSz0",
+    apiKey: "AIzaSyCNArlKOZCYgUvGkMrkWaGlexRMl6-vD44",
     authDomain: "studentflow-dc8c3.firebaseapp.com",
+    databaseURL: "https://studentflow-dc8c3-default-rtdb.firebaseio.com",
     projectId: "studentflow-dc8c3",
-    storageBucket: "studentflow-dc8c3.appspot.com",
+    storageBucket: "studentflow-dc8c3.firebasestorage.app",
     messagingSenderId: "494129898410",
-    appId: "1:494129898410:web:YOUR_APP_ID"
+    appId: "1:494129898410:web:c905511d85e157b20c41d3",
+    measurementId: "G-RVNYFF3YZN"
 };
 
 // Initialize Firebase
@@ -149,17 +151,17 @@ async function register() {
             displayName: `${first_name} ${last_name}`
         });
         
-        // Store user data in Firestore
+        // Store user data in Firestore (wait for auth state to propagate)
         await db.collection('users').doc(user.uid).set({
             first_name: first_name,
             last_name: last_name,
             email: email,
-            created_at: firebase.firestore.FieldValue.serverTimestamp()
+            created_at: new Date().toISOString()
         });
         
         console.log('✅ Registered successfully with Firebase');
-        alert('✅ Registration successful! Please login.');
-        showLogin();
+        alert('✅ Registration successful! You are now logged in.');
+        // Don't call showLogin, let auth state listener handle it
     } catch (err) {
         console.error('Registration error:', err);
         alert(`Registration failed: ${err.message}`);
@@ -511,50 +513,9 @@ async function updateTaskStatus(id, status) {
 }
 
 async function addTaskToCalendar(taskId, taskTitle, dueDate = null) {
-    try {
-        // Create event details
-        const startDate = dueDate ? new Date(dueDate) : new Date();
-        const endDate = new Date(startDate);
-        endDate.setHours(startDate.getHours() + 1); // 1 hour event
-
-        // Format dates for Google Calendar URL
-        const formatDate = (date) => {
-            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        };
-
-        // Create Google Calendar event URL
-        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-            `&text=${encodeURIComponent(taskTitle)}` +
-            `&dates=${formatDate(startDate)}/${formatDate(endDate)}` +
-            `&details=${encodeURIComponent('Task from StudentFlow')}` +
-            `&sf=true&output=xml`;
-
-        // Show embedded calendar in modal
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.display = 'block';
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width: 1000px; max-height: 90vh; padding: 0;">
-                <div class="chat-header" style="padding: 1.5rem; background: #4285f4; color: white;">
-                    <h2 style="margin: 0; color: white;">📅 Add to Google Calendar</h2>
-                    <button class="close-btn-red" onclick="this.closest('.modal').remove()" style="background: rgba(255,255,255,0.2); color: white;">&times;</button>
-                </div>
-                <div style="padding: 1rem; background: #f9fafb;">
-                    <p style="margin: 0 0 1rem 0; color: #1f2937;"><strong>Task:</strong> ${taskTitle}</p>
-                    <p style="margin: 0 0 1rem 0; color: #6b7280; font-size: 0.875rem;">Click "Save" in the calendar below to add this event</p>
-                </div>
-                <iframe src="${calendarUrl}" 
-                    style="width: 100%; height: 600px; border: none; border-top: 1px solid #e5e7eb;"
-                    frameborder="0"
-                    scrolling="yes">
-                </iframe>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    } catch (err) {
-        alert('Failed to create calendar event: ' + err.message);
-    }
+    // Simply show the embedded Google Calendar modal
+    // Users can manually add the task event
+    showEmbeddedCalendar();
 }
 
 async function deleteTask(id) {
@@ -1503,43 +1464,7 @@ function showEmbeddedCalendar() {
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
 
-async function connectGoogleCalendar() {
-    try {
-        // Get upcoming tasks to add to calendar
-        const response = await fetch(`${API_URL}/study/tasks`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch tasks');
-        }
-        
-        const tasks = await response.json();
-        const incompleteTasks = tasks.filter(t => !t.completed);
-        
-        if (incompleteTasks.length === 0) {
-            alert('📅 No pending tasks to add to calendar!\n\nCreate some tasks first, then sync them to Google Calendar.');
-            return;
-        }
-        
-        // Create calendar events text for manual addition
-        let calendarText = '📅 Add these tasks to Google Calendar:\n\n';
-        incompleteTasks.forEach(task => {
-            const dueDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date';
-            calendarText += `• ${task.title}\n  Due: ${dueDate}\n  Subject: ${task.subject || 'General'}\n\n`;
-        });
-        
-        calendarText += '\nOpening Google Calendar...';
-        alert(calendarText);
-        
-        // Open Google Calendar
-        window.open('https://calendar.google.com/calendar/r', '_blank');
-        
-    } catch (error) {
-        console.error('Error syncing with calendar:', error);
-        alert('❌ Failed to sync with Google Calendar. Please try again later.');
-    }
-}
+// Removed legacy calendar connector; using embedded calendar instead
 
 if (token) {
     showApp();
