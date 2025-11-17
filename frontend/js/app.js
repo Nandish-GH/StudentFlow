@@ -1,23 +1,14 @@
-// Firebase Configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyCNArlKOZCYgUvGkMrkWaGlexRMl6-vD44",
-    authDomain: "studentflow-dc8c3.firebaseapp.com",
-    databaseURL: "https://studentflow-dc8c3-default-rtdb.firebaseio.com",
-    projectId: "studentflow-dc8c3",
-    storageBucket: "studentflow-dc8c3.firebasestorage.app",
-    messagingSenderId: "494129898410",
-    appId: "1:494129898410:web:c905511d85e157b20c41d3",
-    measurementId: "G-RVNYFF3YZN"
-};
+// Firebase Configuration (injected at runtime by backend via /config.js)
+const firebaseConfig = (typeof window !== 'undefined' && window.__FIREBASE_CONFIG__) ? window.__FIREBASE_CONFIG__ : null;
 
 // Initialize Firebase
-if (typeof firebase !== 'undefined') {
+if (typeof firebase !== 'undefined' && firebaseConfig) {
     firebase.initializeApp(firebaseConfig);
     var auth = firebase.auth();
     var db = firebase.firestore();
     console.log('✅ Firebase initialized successfully');
 } else {
-    console.warn('⚠️ Firebase SDK not loaded');
+    console.warn('⚠️ Firebase SDK or config not loaded');
 }
 
 // Use local API during dev, relative path in production (Cloud Run/GAE)

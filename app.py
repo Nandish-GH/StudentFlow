@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -50,7 +50,12 @@ if FIREBASE_AVAILABLE:
                 })
                 print("[Firebase] ✅ Initialized with environment variable")
             else:
-                print("[Firebase] ⚠️  No service account found - Firebase features will be limited")
+                # Fall back to Application Default Credentials (e.g., Cloud Run)
+                try:
+                    firebase_admin.initialize_app()
+                    print("[Firebase] ✅ Initialized with application default credentials")
+                except Exception as e:
+                    print("[Firebase] ⚠️  No service account or ADC available - Firebase features will be limited:", e)
     except Exception as e:
         print(f"[Firebase] ❌ Initialization error: {e}")
 else:
@@ -197,6 +202,22 @@ async def api_root():
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
+
+# Public runtime configuration for the frontend (no secrets). Returns JS.
+@app.get("/config.js", response_class=PlainTextResponse)
+async def public_config_js():
+    cfg = {
+        "apiKey": os.getenv("FIREBASE_API_KEY", ""),
+        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+        "databaseURL": os.getenv("FIREBASE_DATABASE_URL", ""),
+        "projectId": os.getenv("FIREBASE_PROJECT_ID", ""),
+        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+        "appId": os.getenv("FIREBASE_APP_ID", ""),
+        "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID", "")
+    }
+    js = "window.__FIREBASE_CONFIG__ = " + json.dumps(cfg) + ";\n"
+    return PlainTextResponse(js, media_type="application/javascript")
 
 class UserRegister(BaseModel):
     email: EmailStr
